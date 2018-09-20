@@ -3,8 +3,11 @@ package com.aohu.iface;
 import java.io.BufferedInputStream;
 import java.io.FileInputStream;
 import java.io.InputStream;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -64,8 +67,9 @@ public class ZkemSDK {
 		"Hour"			考勤时间：时
 		"Minute"		考勤时间：分
 		"Second"		考勤时间：秒
+	 * @throws ParseException 
 	*/
-	public List<Map<String,Object>> getGeneralLogData()
+	public List<Map<String,Object>> getGeneralLogData(String end_time) throws ParseException
 	{
 		Variant v0 			   = new Variant(1);
 		Variant dwEnrollNumber = new Variant("",true);
@@ -99,12 +103,17 @@ public class ZkemSDK {
 				int year     = dwYear.getIntRef();
 				int month    = dwMonth.getIntRef();
 				int day	     = dwDay.getIntRef();
-				Calendar now = Calendar.getInstance();
-				int nowyear  = now.get(Calendar.YEAR);
-				int nowday   = now.get(Calendar.DAY_OF_MONTH);
-				int nowmonth = now.get(Calendar.MONTH) + 1;
 				
-				/* 只记录今天的考勤数据 */
+				SimpleDateFormat smpDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+				Date date = smpDateFormat.parse(end_time);
+				
+				Calendar time = Calendar.getInstance();
+				time.setTime(date);
+				int nowyear  = time.get(Calendar.YEAR);
+				int nowday   = time.get(Calendar.DAY_OF_MONTH);
+				int nowmonth = time.get(Calendar.MONTH) + 1;
+				
+				/* 记录配置中的最后考勤时间数据考勤数据 */
 				if (year < nowyear || month < nowmonth || day < nowday) {
 					continue;
 				}
@@ -128,17 +137,16 @@ public class ZkemSDK {
 	
 	public static void main(String[] args) throws Exception
 	{	
-		Properties properties = new Properties();
-		InputStream inStream  = new BufferedInputStream(new FileInputStream(System.getProperty("user.dir") + "/config/config.properties"));
-		properties.load(inStream);
 		
+		String path = System.getProperty("user.dir") + "/config/config.properties";
+		PropertyUtil propertyUtil = new PropertyUtil(path);
 		ZkemSDK sdk       = new ZkemSDK();
-		boolean  connFlag = sdk.connect(properties.getProperty("ip"), Integer.parseInt(properties.getProperty("port")));
+		boolean  connFlag = sdk.connect(propertyUtil.getProperty("ip"), Integer.parseInt(propertyUtil.getProperty("port")));
 		if (false == connFlag) {
 			logger.info("连接考勤机失败，请检查！！");
 		}
 		
-		List<Map<String, Object>> kqdata = sdk.getGeneralLogData();
+		List<Map<String, Object>> kqdata = sdk.getGeneralLogData(propertyUtil.getProperty("end_time"));
 		if (kqdata.isEmpty()) {
 			logger.info("暂无考勤数据！！");
 		} else {
@@ -147,9 +155,18 @@ public class ZkemSDK {
 			params.put("content", kqdata);
 			//发送接口数据
 			
-			String urlString      = properties.getProperty("api_url");
+			String urlString      = propertyUtil.getProperty("api_url");
 			HttpUtil httpUtil     = new HttpUtil();
 			JSONObject testObject = httpUtil.postJson(urlString, JSON.toJSONString(params));
+			int code = testObject.getInteger("code");
+			
+			if (code == 0) {
+				//更改配置文件中的end_time为当前时间
+				SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+				String end_time = df.format(new Date());
+				propertyUtil.update("end_time", end_time);
+			}
+			
 			logger.info(testObject);
 		}
 	}
