@@ -103,24 +103,19 @@ public class ZkemSDK {
 				int year     = dwYear.getIntRef();
 				int month    = dwMonth.getIntRef();
 				int day	     = dwDay.getIntRef();
+				String time  = year + "-" + month + "-" + day + " " + dwHour.getIntRef() + ":" + dwMinute.getIntRef() + ":" + dwSecond.getIntRef();
 				
 				SimpleDateFormat smpDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-				Date date = smpDateFormat.parse(end_time);
-				
-				Calendar time = Calendar.getInstance();
-				time.setTime(date);
-				int nowyear  = time.get(Calendar.YEAR);
-				int nowday   = time.get(Calendar.DAY_OF_MONTH);
-				int nowmonth = time.get(Calendar.MONTH) + 1;
-				
+				Date end_date  = smpDateFormat.parse(end_time); //上次记录最后一次请求数据时间
+				Date data_time = smpDateFormat.parse(time);     //当前打卡时间
 				/* 记录配置中的最后考勤时间数据考勤数据 */
-				if (year < nowyear || month < nowmonth || day < nowday) {
+				if (data_time.before(end_date)) {
 					continue;
 				}
 				
 				Map<String,Object> m = new HashMap<String, Object>();
 				m.put("EnrollNumber", enrollNumber);
-				m.put("Time", dwYear.getIntRef() + "-" + dwMonth.getIntRef() + "-" + day + " " + dwHour.getIntRef() + ":" + dwMinute.getIntRef() + ":" + dwSecond.getIntRef());
+				m.put("Time", time);
 				m.put("VerifyMode", dwVerifyMode.getIntRef());
 				m.put("InOutMode", dwInOutMode.getIntRef());
 				m.put("Year", year);
